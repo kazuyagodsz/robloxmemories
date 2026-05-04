@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Scrapbook Memories ROBLOX</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+
+    <style>
+        /* Setup dasar */
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #e8e8e8;
+            min-height: 100dvh;
+            margin: 0;
+            padding: 0px;
+            font-family: 'Press Start 2P', monospace; /* Font pixel */
+            overflow: hidden; 
+            touch-action: manipulation;
+        }
+
+        /* Container utama pembungkus buku */
+        .album-wrapper {
+            position: relative;
+            width: 100%;
+            max-width: 420px; 
+            aspect-ratio: 9 / 18; 
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            border-radius: 10px;
+        }
+
+        /* Buku Jurnal */
+        .book {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            border-radius: 10px;
+        }
+
+        /* Styling untuk masing-masing halaman */
+        .page {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-image: url('1777770690973.png'); 
+            background-size: cover;
+            background-position: center;
+            border-radius: 10px;
+            overflow: hidden;
+            
+            transform-origin: left center; 
+            transform: perspective(2500px) rotateY(0deg); 
+            transition: transform 0.9s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.8s ease-in-out, visibility 0.9s;
+            transform-style: preserve-3d;
+            backface-visibility: hidden;
+        }
+
+        /* Class ketika halaman dibalik */
+        .page.flipped {
+            transform: perspective(2500px) rotateY(-110deg);
+            opacity: 0; 
+            visibility: hidden; 
+        }
+
+        /* Class bantuan untuk posisi absolute */
+        .item { position: absolute; }
+
+        /* --- STYLING ISI HALAMAN --- */
+        .title { top: 4%; left: 5%; width: 25%; transform: rotate(-6deg); }
+
+        .polaroid {
+            position: absolute;
+            width: 32%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.1));
+            cursor: pointer; /* Tambahan: agar terlihat bisa diklik */
+            transition: transform 0.2s ease;
+        }
+        
+        .polaroid:hover {
+            filter: drop-shadow(4px 8px 12px rgba(0,0,0,0.2));
+            z-index: 10; /* Angkat sedikit saat dihover */
+        }
+
+        .polaroid .frame { width: 100%; position: relative; z-index: 2; pointer-events: none; }
+
+        .polaroid .user-photo {
+            position: absolute;
+            width: 70%;  
+            height: 70%; 
+            top: 11%;
+            left: 12%;
+            object-fit: cover; 
+            z-index: 1;
+            background-color: #87CEEB; 
+        }
+
+        .p1 { top: 25%; left: 20%; transform: rotate(-8deg); }
+        .p2 { top: 20%; left: 56%; transform: rotate(6deg); }
+        .p3 { top: 43%; left: 59%; transform: rotate(-4deg); }
+        .p4 { top: 64%; left: 31%; transform: rotate(6deg); }
+
+        .emoji-1 { top: 45%; left: 31%; width: 25%; z-index: 3; }
+        .emoji-2 { top: 65%; left: 67%; width: 27%; transform: rotate(5deg); z-index: 3; }
+
+        .page-text {
+            text-align: center;
+            margin-top: 50%;
+            color: #555;
+            font-size: 1.2rem;
+            font-weight: bold;
+            opacity: 0.7;
+            padding: 0 20px;
+        }
+
+        /* --- TOMBOL NAVIGASI MENGAMBANG (GLASSMORPHISM) --- */
+        .nav-controls {
+            position: fixed;
+            bottom: 25px; 
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            z-index: 100; 
+            pointer-events: none; 
+        }
+
+        .nav-btn {
+            pointer-events: auto; 
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            color: #444;
+            font-size: 20px;
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            outline: none;
+            -webkit-tap-highlight-color: transparent; 
+        }
+
+        .nav-btn:hover { background: rgba(255, 255, 255, 0.9); transform: translateY(-2px); }
+        .nav-btn:active { transform: translateY(2px) scale(0.95); }
+        .nav-btn.disabled { opacity: 0.3; cursor: default; transform: none; }
+
+        /* --- TAMBAHAN: STYLING MODAL PREVIEW --- */
+        #previewModal {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.85); /* Wadah gelap */
+            z-index: 1000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+            cursor: pointer; /* Memberi tahu user bisa diklik untuk tutup */
+        }
+
+        #previewModal.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-content {
+            /* Animasi Pop-out dari 0.7 ke 1 */
+            transform: scale(0.7);
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            position: relative;
+        }
+
+        #previewModal.active .modal-content {
+            transform: scale(1);
+        }
+
+        .modal-polaroid {
+            position: relative;
+            background-color: white;
+            /* Desain polaroid fisik: border 8px, bawah lebih lebar (50px) */
+            border: 8px solid white;
+            border-bottom: 55px solid white;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.5);
+            max-width: 80vw;
+            max-height: 70vh;
+        }
+
+        .modal-polaroid img {
+            width: 100%;
+            height: auto;
+            max-height: 60vh;
+            object-fit: cover;
+            display: block;
+            background-color: #87CEEB;
+        }
+
+        .modal-caption {
+            position: absolute;
+            bottom: -30px; /* Ditaruh di area border bawah yang lebih lebar */
+            left: 0;
+            width: 100%;
+            text-align: center;
+            font-family: 'Press Start 2P', monospace; /* Font pixel */
+            font-size: 7px;
+            color: #222;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            color: white;
+            font-size: 30px;
+            font-weight: bold;
+            z-index: 1001;
+        }
+    </style>
+</head>
+<body>
+
+    <audio id="flipSound" src="open_book.mp3" preload="auto"></audio>
+
+    <div class="album-wrapper">
+        <div class="book">
+            
+            <div class="page">
+                <img src="/assets/img/1777772141425.png" class="item title" alt="Memories Roblox">
+
+                <div class="polaroid p1" onclick="openPreview(this)" data-caption="dimap katalog bersama nana yang imut">
+                    <img src="/assets/img/10028841038_7041939546_1777734807116.png" class="user-photo" alt="Photo 1"> 
+                    <img src="/assets/img/20260503_092858.png" class="frame" alt="Frame">
+                </div>
+
+                <div class="polaroid p2" onclick="openPreview(this)" data-caption="ROBLOX">
+                    <img src="/assets/img/.trashed-1779195294-10028841038_16494042712_1776480448886.png" class="user-photo" alt="Photo 2">
+                    <img src="/assets/img/20260503_092858.png" class="frame" alt="Frame">
+                </div>
+
+                <div class="polaroid p3" onclick="openPreview(this)" data-caption="FUN!">
+                    <img src="/assets/img/.trashed-1779195293-10028841038_133057724860732_1776352256230.png" class="user-photo" alt="Photo 3">
+                    <img src="/assets/img/20260503_092858.png" class="frame" alt="Frame">
+                </div>
+
+                <div class="polaroid p4" onclick="openPreview(this)" data-caption="MEMORIES">
+                    <img src="/assets/img/.trashed-1779195293-10028841038_133057724860732_1776350343008.png" class="user-photo" alt="Photo 4">
+                    <img src="/assets/img/20260503_092858.png" class="frame" alt="Frame">
+                </div>
+
+                <img src="/assets/img/1777771051309.png" class="item emoji-1" alt="Emoji 1">
+                <img src="/assets/img/1777771243447.png" class="item emoji-2" alt="Emoji 2">
+            </div>
+
+            <div class="page">            
+                <img src="/assets/img/1777772141425.png" class="item title" alt="Memories Roblox">
+                
+                <div class="polaroid p1" onclick="openPreview(this)" data-caption="dimap katalog bersama nana yang imut">
+                    <img src="/assets/img/10028841038_7041939546_1777734807116.png" class="user-photo" alt="Photo 1"> 
+                    <img src="/assets/img/20260503_092858.png" class="frame" alt="Frame">
+                </div>
+
+                <div class="polaroid p2" onclick="openPreview(this)" data-caption="ROBLOX">
+                    <img src="/assets/img/.trashed-1779195294-10028841038_16494042712_1776480448886.png" class="user-photo" alt="Photo 2">
+                    <img src="/assets/img/20260503_092858.png" class="frame" alt="Frame">
+                </div>
+
+                <div class="polaroid p3" onclick="openPreview(this)" data-caption="FUN!">
+                    <img src="/assets/img/.trashed-1779195293-10028841038_133057724860732_1776352256230.png" class="user-photo" alt="Photo 3">
+                    <img src="/assets/img/20260503_092858.png" class="frame" alt="Frame">
+                </div>
+
+                <div class="polaroid p4" onclick="openPreview(this)" data-caption="MEMORIES">
+                    <img src="/assets/img/.trashed-1779195293-10028841038_133057724860732_1776350343008.png" class="user-photo" alt="Photo 4">
+                    <img src="/assets/img/20260503_092858.png" class="frame" alt="Frame">
+                </div>
+
+                <img src="/assets/img/1777787061444.png" class="item emoji-1" alt="Emoji 1">
+                <img src="/assets/img/1777787132068.png" class="item emoji-2" alt="Emoji 2">
+            </div>
+
+            <div class="page">
+                <img src="/assets/img/1777772141425.png" class="item title" alt="Memories Roblox">
+                <h1 class="page-text">Halaman 3<br><small>Belum Ada!</small></h1>
+            </div>
+            
+            <div class="page">
+                <img src="/assets/img/1777772141425.png" class="item title" alt="Memories Roblox">
+                <h1 class="page-text">Halaman 4<br><small>Sampai Jumpa!</small></h1>
+            </div>
+
+            </div>
+
+        <div class="nav-controls">
+            <button class="nav-btn disabled" id="btnPrev" onclick="prevPage()">❮</button>
+            <button class="nav-btn" id="btnNext" onclick="nextPage()">❯</button>
+        </div>
+    </div>
+
+    <div id="previewModal" onclick="closePreview()">
+        <span class="close-btn">&times;</span>
+        <div class="modal-content">
+            <div class="modal-polaroid">
+                <img id="modalImg" src="" alt="Preview">
+                <div id="modalCaption" class="modal-caption">TEXT</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentPage = 1;
+        // Ambil semua elemen yang memiliki class 'page'
+        const pages = document.querySelectorAll('.page');
+        const totalPages = pages.length;
+
+        const btnPrev = document.getElementById('btnPrev');
+        const btnNext = document.getElementById('btnNext');
+        const flipSound = document.getElementById('flipSound');
+
+        // OTOMATISASI Z-INDEX: Halaman 1 dapat z-index paling besar, halaman terakhir dapat z-index paling kecil
+        pages.forEach((page, index) => {
+            page.style.zIndex = totalPages - index;
+        });
+
+        function playFlipSound() {
+            flipSound.currentTime = 0;
+            flipSound.play().catch(e => console.log("Audio play prevented by browser", e));
+        }
+
+        function updateButtons() {
+            if(currentPage === 1) btnPrev.classList.add('disabled');
+            else btnPrev.classList.remove('disabled');
+
+            if(currentPage === totalPages) btnNext.classList.add('disabled');
+            else btnNext.classList.remove('disabled');
+        }
+
+        function nextPage() {
+            if (currentPage < totalPages) {
+                playFlipSound();
+                // Array dimulai dari 0, jadi halaman 1 adalah index 0
+                pages[currentPage - 1].classList.add('flipped');
+                currentPage++;
+                updateButtons();
+            }
+        }
+
+        function prevPage() {
+            if (currentPage > 1) {
+                playFlipSound();
+                currentPage--;
+                // Hapus efek flipped saat kembali
+                pages[currentPage - 1].classList.remove('flipped');
+                updateButtons();
+            }
+        }
+
+        // --- FUNGSI MODAL PREVIEW ---
+        function openPreview(element) {
+            const imgSrc = element.querySelector('.user-photo').src;
+            const captionText = element.getAttribute('data-caption');
+            
+            document.getElementById('modalImg').src = imgSrc;
+            document.getElementById('modalCaption').innerText = captionText;
+            document.getElementById('previewModal').classList.add('active');
+        }
+
+        function closePreview() {
+            document.getElementById('previewModal').classList.remove('active');
+        }
+
+        // Script backup foto jika gambar gagal diload
+        const fotoMentahanMu = [
+            'https://via.placeholder.com/300/87CEEB/FFFFFF?text=Foto+1', 
+            'https://via.placeholder.com/300/87CEEB/FFFFFF?text=Foto+2', 
+            'https://via.placeholder.com/300/87CEEB/FFFFFF?text=Foto+3', 
+            'https://via.placeholder.com/300/87CEEB/FFFFFF?text=Foto+4'  
+        ];
+
+        const userPhotos = document.querySelectorAll('.user-photo');
+        userPhotos.forEach((img, index) => {
+            img.addEventListener('error', function() {
+                this.src = fotoMentahanMu[index % fotoMentahanMu.length];
+            });
+        });
+    </script>
+
+</body>
+</html>
